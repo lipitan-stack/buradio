@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1020" />
+  <title>Alarm Radio PWA</title>
+
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+
+  <style>
+    :root{
+      --bg:#0b1020;
+      --card:#111a33;
+      --text:#e9efff;
+      --muted:#aab6e8;
+      --accent:#5aa7ff;
+      --danger:#ff4d4d;
+      --border:rgba(255,255,255,.12);
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+      --radius:16px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:radial-gradient(1200px 800px at 20% 10%, rgba(90,167,255,.22), transparent 55%),
+                 radial-gradient(900px 700px at 90% 30%, rgba(180,90,255,.16), transparent 60%),
+                 var(--bg);
+      color:var(--text);
+      font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    }
+    .wrap{
+      max-width:720px;
+      margin:0 auto;
+      padding:18px 14px 30px;
+    }
+    header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:12px;
+    }
+    h1{
+      font-size:18px;
+      margin:0;
+      letter-spacing:.2px;
+    }
+    .pill{
+      font-size:12px;
+      color:var(--muted);
+      border:1px solid var(--border);
+      padding:6px 10px;
+      border-radius:999px;
+      background:rgba(255,255,255,.04);
+    }
+    .card{
+      background:rgba(17,26,51,.82);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:14px;
+      margin:12px 0;
+      backdrop-filter: blur(10px);
+    }
+    .row{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
+    label{color:var(--muted); font-size:13px}
+    input[type="time"], input[type="number"], select{
+      background:rgba(255,255,255,.06);
+      border:1px solid var(--border);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      outline:none;
+    }
+    input[type="number"]{width:120px}
+    .btn{
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.06);
+      color:var(--text);
+      padding:11px 12px;
+      border-radius:14px;
+      cursor:pointer;
+      user-select:none;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      min-height:44px;
+    }
+    .btn:hover{background:rgba(255,255,255,.09)}
+    .btn.primary{background:rgba(90,167,255,.18); border-color:rgba(90,167,255,.35)}
+    .btn.primary:hover{background:rgba(90,167,255,.24)}
+    .btn.danger{background:rgba(255,77,77,.14); border-color:rgba(255,77,77,.35)}
+    .btn.danger:hover{background:rgba(255,77,77,.2)}
+    .btn:disabled{opacity:.55; cursor:not-allowed}
+
+    .btn img{
+      width:22px;
+      height:22px;
+      display:block;
+    }
+
+    .status{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .big{
+      font-size:14px;
+      margin:0;
+    }
+    .muted{color:var(--muted)}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace}
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:10px;
+    }
+    @media (min-width:640px){
+      .grid{grid-template-columns: 1fr 1fr}
+    }
+    .small{font-size:12px}
+    .hr{height:1px; background:var(--border); margin:12px 0}
+    .toast{
+      margin-top:10px;
+      font-size:13px;
+      color:var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Alarm Radio PWA</h1>
+      <div class="pill" id="pwaState">PWA: …</div>
+    </header>
+
+    <div class="card status">
+      <div>
+        <p class="big">Статус: <span id="statusText" class="mono">ожидание</span></p>
+        <div class="small muted">Совет: сначала нажми «Тест звука» (разрешает звук на iOS/Android), затем установи на главный экран.</div>
+      </div>
+      <div class="row">
+        <button class="btn primary" id="testSoundBtn">
+          <img src="./icons/ui/volume.png" alt="">
+          Тест звука
+        </button>
+        <button class="btn danger" id="stopBtn" disabled>
+          <img src="./icons/ui/stop.png" alt="">
+          Стоп
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="grid">
+        <div>
+          <label for="alarmTime">Время будильника</label><br>
+          <input id="alarmTime" type="time" value="07:00">
+        </div>
+
+        <div>
+          <label for="snoozeMin">Snooze (мин)</label><br>
+          <input id="snoozeMin" type="number" min="1" max="60" value="10">
+        </div>
+
+        <div>
+          <label for="soundMode">Режим</label><br>
+          <select id="soundMode">
+            <option value="tone" selected>Тон (встроенный)</option>
+            <option value="radio">Радио (URL потока)</option>
+          </select>
+        </div>
+
+        <div id="radioWrap" style="display:none">
+          <label for="radioUrl">URL радио-потока</label><br>
+          <input id="radioUrl" type="text" placeholder="https://example.com/stream.mp3" style="width:100%">
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="row">
+        <button class="btn primary" id="armBtn">
+          <img src="./icons/ui/alarm.png" alt="">
+          Поставить
+        </button>
+
+        <button class="btn" id="snoozeBtn" disabled>
+          <img src="./icons/ui/snooze.png" alt="">
+          Snooze
+        </button>
+
+        <button class="btn" id="playBtn">
+          <img src="./icons/ui/play.png" alt="">
+          Play
+        </button>
+
+        <button class="btn" id="pauseBtn" disabled>
+          <img src="./icons/ui/pause.png" alt="">
+          Pause
+        </button>
+
+        <button class="btn" id="reconnectBtn">
+          <img src="./icons/ui/refresh.png" alt="">
+          Переподключить
+        </button>
+      </div>
+
+      <div class="toast" id="hintText"></div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <div>
+          <div class="muted small">Текущее время</div>
+          <div class="mono" id="nowText">--:--:--</div>
+        </div>
+        <div>
+          <div class="muted small">Следующий будильник</div>
+          <div class="mono" id="nextText">не задан</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- PWA state ---
+    const pwaStateEl = document.getElementById('pwaState');
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    pwaStateEl.textContent = 'PWA: ' + (isStandalone ? 'standalone' : 'browser');
+
+    // --- SW register ---
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        try { await navigator.serviceWorker.register('./sw.js'); } catch (e) {}
+      });
+    }
+
+    // --- UI elements ---
+    const statusText = document.getElementById('statusText');
+    const hintText = document.getElementById('hintText');
+    const nowText = document.getElementById('nowText');
+    const nextText = document.getElementById('nextText');
+
+    const testSoundBtn = document.getElementById('testSoundBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const armBtn = document.getElementById('armBtn');
+    const snoozeBtn = document.getElementById('snoozeBtn');
+    const playBtn = document.getElementById('playBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const reconnectBtn = document.getElementById('reconnectBtn');
+
+    const alarmTime = document.getElementById('alarmTime');
+    const snoozeMin = document.getElementById('snoozeMin');
+    const soundMode = document.getElementById('soundMode');
+    const radioWrap = document.getElementById('radioWrap');
+    const radioUrl = document.getElementById('radioUrl');
+
+    soundMode.addEventListener('change', () => {
+      radioWrap.style.display = soundMode.value === 'radio' ? 'block' : 'none';
+    });
+
+    // --- Audio ---
+    let audio = new Audio();
+    audio.preload = 'auto';
+    audio.loop = true;
+
+    // iOS/Android require user gesture to start audio: we "unlock" audio on test button.
+    async function unlockAudio() {
+      try {
+        // play a very short silent-ish tone using WebAudio if possible
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          gain.gain.value = 0.0001;
+          osc.connect(gain).connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.05);
+          await ctx.resume();
+          setTimeout(() => ctx.close?.(), 150);
+        }
+      } catch(e) {}
+    }
+
+    function setStatus(s, hint='') {
+      statusText.textContent = s;
+      hintText.textContent = hint;
+    }
+
+    function fmt2(n){ return String(n).padStart(2,'0'); }
+
+    function tickClock() {
+      const d = new Date();
+      nowText.textContent = `${fmt2(d.getHours())}:${fmt2(d.getMinutes())}:${fmt2(d.getSeconds())}`;
+    }
+    setInterval(tickClock, 250);
+    tickClock();
+
+    // --- Alarm scheduling (simple, in-app; needs app running in foreground to trigger reliably) ---
+    let alarmTimer = null;
+    let armedAt = null;
+    let nextAt = null;
+
+    function computeNextAlarm() {
+      const [hh, mm] = alarmTime.value.split(':').map(Number);
+      const now = new Date();
+      let t = new Date(now);
+      t.setHours(hh, mm, 0, 0);
+      if (t <= now) t.setDate(t.getDate() + 1);
+      return t;
+    }
+
+    function updateNextText() {
+      if (!nextAt) nextText.textContent = 'не задан';
+      else nextText.textContent = `${nextAt.toLocaleString()}`;
+    }
+
+    function clearAlarm() {
+      if (alarmTimer) clearTimeout(alarmTimer);
+      alarmTimer = null;
+      armedAt = null;
+      nextAt = null;
+      updateNextText();
+    }
+
+    function scheduleAlarm() {
+      clearAlarm();
+      nextAt = computeNextAlarm();
+      updateNextText();
+      const delay = Math.max(0, nextAt.getTime() - Date.now());
+      armedAt = new Date();
+      alarmTimer = setTimeout(() => triggerAlarm(), delay);
+    }
+
+    async function prepareAudioSource() {
+      if (soundMode.value === 'radio') {
+        const url = (radioUrl.value || '').trim();
+        if (!url) throw new Error('Укажи URL радио-потока');
+        audio.src = url;
+      } else {
+        // встроенный тон через data-uri (очень короткий; зацикливаем)
+        // Надёжнее: использовать свой mp3/ogg файл. Но тут без доп.файлов.
+        audio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=';
+      }
+      audio.loop = true;
+    }
+
+    async function startSound() {
+      await prepareAudioSource();
+      audio.currentTime = 0;
+      await audio.play();
+      stopBtn.disabled = false;
+      snoozeBtn.disabled = false;
+      pauseBtn.disabled = false;
+      setStatus('звонит', 'Если радио не играет — проверь URL потока (CORS/формат).');
+    }
+
+    function stopSound() {
+      try { audio.pause(); } catch(e) {}
+      stopBtn.disabled = true;
+      snoozeBtn.disabled = true;
+      pauseBtn.disabled = true;
+      setStatus('остановлено');
+    }
+
+    function triggerAlarm() {
+      startSound().catch(err => {
+        setStatus('ошибка звука', String(err?.message || err));
+      });
+    }
+
+    // --- Buttons ---
+    testSoundBtn.addEventListener('click', async () => {
+      await unlockAudio();
+      setStatus('звук разблокирован', 'Теперь можно ставить будильник и/или установить PWA на главный экран.');
+      // короткий "пик"
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.frequency.value = 880;
+          gain.gain.value = 0.08;
+          osc.connect(gain).connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.12);
+          await ctx.resume();
+          setTimeout(() => ctx.close?.(), 250);
+        }
+      } catch(e) {}
+    });
+
+    armBtn.addEventListener('click', async () => {
+      await unlockAudio();
+      scheduleAlarm();
+      setStatus('поставлено', 'Держи приложение открытым для 100% срабатывания (ограничения браузеров).');
+    });
+
+    stopBtn.addEventListener('click', () => {
+      stopSound();
+      clearAlarm();
+      setStatus('остановлено', 'Будильник снят.');
+    });
+
+    snoozeBtn.addEventListener('click', () => {
+      stopSound();
+      const mins = Math.min(60, Math.max(1, Number(snoozeMin.value || 10)));
+      clearAlarm();
+      nextAt = new Date(Date.now() + mins * 60 * 1000);
+      updateNextText();
+      alarmTimer = setTimeout(() => triggerAlarm(), mins * 60 * 1000);
+      setStatus('snooze', `Повтор через ${mins} мин.`);
+    });
+
+    playBtn.addEventListener('click', () => {
+      startSound().catch(err => setStatus('ошибка', String(err?.message || err)));
+    });
+
+    pauseBtn.addEventListener('click', () => {
+      try { audio.pause(); } catch(e) {}
+      pauseBtn.disabled = true;
+      setStatus('пауза', 'Нажми Play чтобы продолжить.');
+    });
+
+    audio.addEventListener('play', () => {
+      stopBtn.disabled = false;
+      snoozeBtn.disabled = false;
+      pauseBtn.disabled = false;
+      pauseBtn.disabled = false;
+    });
+    audio.addEventListener('pause', () => {
+      // allow resume
+      pauseBtn.disabled = true;
+    });
+
+    reconnectBtn.addEventListener('click', async () => {
+      // useful for radio streams: re-set src and play
+      try {
+        const wasPlaying = !audio.paused;
+        await prepareAudioSource();
+        if (wasPlaying) await audio.play();
+        setStatus('переподключено', 'Если это радио — иногда нужно 1–2 попытки.');
+      } catch (e) {
+        setStatus('ошибка', String(e?.message || e));
+      }
+    });
+
+    // initial
+    setStatus('ожидание', 'Нажми «Тест звука» перед использованием.');
+  </script>
+</body>
+</html>
